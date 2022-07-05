@@ -3,8 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <title>login page</title>
+       <style>
+    header{
+    font-size: 300%;
+    }
+ *{
+  color: red;
+  text-align: center;
+}
+body {
+  background-color: lightblue;
+}
+</style>
 </head>
 <body>
+<header>LOGIN FORM</header>
 <form action="login" method="POST">
 
  {% csrf_token %}

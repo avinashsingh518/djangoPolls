@@ -31,10 +31,6 @@ def result(request, pk):
 
 
 
-def home(request):
-    return render(request, 'home.html')
-
-
 def profile(request):
     return render(request, 'profile.html')
 
@@ -68,5 +64,7 @@ def login(request):
             return redirect('login')
     else:
         return render(request, 'login.html')
-
+def logout(request):
+    auth.logout(request)
+    return redirect('/')
 
