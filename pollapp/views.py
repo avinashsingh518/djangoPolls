@@ -1,70 +1,147 @@
-from django.contrib import auth
-from django.contrib.auth.models import User
+
 from django.shortcuts import render, redirect
-from .models import Question, Choice
+from rest_framework.views import APIView                     
+from rest_framework.response import Response
+from .serializers import *
+from .models import *
 
-# Create your views here.
+
+
+
+
+def wel(request):
+    if request.session.has_key('uid'):
+        t=Register.objects.filter(username=request.session['uid'])
+        return render(request,'a.html', {"res":t, 'udata':request.session['uid']})
+    else:
+        return redirect('login')
+
+
+def delete(request):
+    s=Register.objects.get(pk=request.GET['q'])
+    s.delete()
+    return redirect('signup')
+
+def signup_view(request):
+    if request.method == 'POST':
+        obj=Register(mobile=request.POST['txtmobile'], emailid =request.POST['txtemail'], firstname =request.POST["txtfname"], lastname =request.POST["txtlname"], username =request.POST["txtuser"], password =request.POST['txtpass'])
+        obj.save()
+        return render(request, 'signup.html', {"msg":"Registration Successfully"})
+    return render(request, 'signup.html')
+
+
+def login_view(request):
+    if request.method=="POST":
+
+       username = request.POST["txtuser"]
+
+       password = request.POST["txtpass"]
+
+       s = Register.objects.filter(username=username,password=password)
+
+       if(s.count()==1):
+
+            request.session['uid'] = request.POST["txtuser"]
+            return redirect("index")
+
+       else:
+
+            return render(request,"login.html",{"key":"invalid userid and password"})   
+
+    return render(request,"login.html")
+
+
+def logout(request):
+    del request.session['uid']
+    return redirect('/login')
+
+
+
+
+
+
 def index(request):
-    questions = Question.objects.all()
-    return render(request, 'index.html', {'questions': questions})
+    if request.session.has_key('uid'):
+        questions = Question.objects.all()
+        return render(request,'index.html', {"questions":questions, 'udata':request.session['uid']})
+    else:
+        return redirect('login')
 
+    
 def vote(request,pk):
-    question = Question.objects.get(id=pk)
-    options = question.choices.all()
-    # if request.method == 'POST':
-    #     inputvalue = request.POST['choice']
-    #     selection_option = options.get(id=inputvalue)
-    #     selection_option.vote += 5
-    #     selection_option.save()
-
-    return render(request, 'vote.html', {'question':question, 'options': options })
+    if request.session.has_key('uid'):
+        question = Question.objects.get(id=pk)
+        options = question.choices.all()
+        return render(request,'vote.html', {"question":question, 'options': options, 'udata':request.session['uid']})
+    else:
+        return redirect('login')
 
 def result(request, pk):
-    question = Question.objects.get(id=pk)
-    options = question.choices.all()
-    if request.method == 'POST':
-        inputvalue = request.POST['choice']
-        selection_option = options.get(id=inputvalue)
-        selection_option.vote += 5
-        selection_option.save()
-    return render(request, 'result.html', {'question': question, 'options': options})
-
-
-
-def profile(request):
-    return render(request, 'profile.html')
-
-
-def signup(request):
-    if request.method == 'POST':
-        username = request.POST['username']
-        firstname = request.POST['first_name']
-        lastname = request.POST['last_name']
-        email = request.POST['email']
-        password = request.POST['password']
-        x = User.objects.create_user(username=username, first_name=firstname, last_name=lastname, email=email,
-                                     password=password)
-        x.save()
-        print("user created successfully")
-        return redirect("/index")
+    if request.session.has_key('uid'):
+        question = Question.objects.get(id=pk)
+        options = question.choices.all()
+        if request.method == 'POST':
+            inputvalue = request.POST['choice']
+            selection_option = options.get(id=inputvalue)
+            selection_option.vote += 5
+            selection_option.save()
+        return render(request,'result.html', {"question":question, 'options': options, 'udata':request.session['uid']})
     else:
-        return render(request, 'signup.html')
+        return redirect('login')
+    
 
+"""<-------APIView method for serializer----------->"""
 
-def login(request):
-    if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
+class RegisterAPI(APIView):
+    def get(self, request):
+        queryset = Register.objects.all()
+        serializer = RegisterSerializer(queryset, many=True)
+        print(request.user)
+        return Response({'status': 200, 'payload':serializer.data})
+    
+    def post(self, request):
+        serializer=RegisterSerializer(data=request.data)
+        if not serializer.is_valid():
+            print(serializer.errors)
+            return Response({'status': 403, 'errors': serializer.errors, 'message':'something went wrong'})
+        serializer.save()
+        return Response({'status': 200, 'payload':serializer.data, 'message':'your data is save'})
+    
+    def patch(self,request):
+        try:
+            stu_obj=Register.objects.get(id=request.data['id'])
+            serializer=RegisterSerializer(stu_obj, data=request.data, partial=True)
+            if not serializer.is_valid():
+                print(serializer.errors)
+                return Response({'status': 403, 'errors': serializer.errors, 'message':'something went wrong'})
+            serializer.save()
+            return Response({'status': 200, 'payload':serializer.data, 'message':'your data is save'})
+        except Exception as e:
+            print(e)
+            return Response({'status': 403, 'message':'you have entered invalid id'})
 
-        user = auth.authenticate(username=username, password=password)
-        if user is not None:
-            auth.login(request, user)
-            return redirect('/index')
-        else:
-            return redirect('login')
-    else:
-        return render(request, 'login.html')
-def logout(request):
-    auth.logout(request)
-    return redirect('/')
+    def put(self,request):
+        try:
+            stu_obj=Register.objects.get(id=request.data['id'])
+            serializer=RegisterSerializer(stu_obj, data=request.data, partial=False)
+            if not serializer.is_valid():
+                print(serializer.errors)
+                return Response({'status': 403, 'errors': serializer.errors, 'message':'something went wrong'})
+            serializer.save()
+            return Response({'status': 200, 'payload':serializer.data, 'message':'your data is save'})
+        except Exception as e:
+            print(e)
+            return Response({'status': 403, 'message':'you have entered invalid id'})
 
+    def delete(self,request):
+        try:
+            id=request.GET.get('id')
+            stu_obj=Register.objects.get(id=id)
+            stu_obj.delete()
+            return Response({'status': 200,  'message':'deleted'})
+
+        except Exception as e:
+            print(e)
+            return Response({'status': 403, 'message':'you have entered invalid id'})
+
+"""<-------APIView method for serializer----------->"""
